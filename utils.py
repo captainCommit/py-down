@@ -75,4 +75,4 @@ def getChromeDriver():
     finally:
         print("Chromedriver is working now")
 
-getChromeDriver()
+#getChromeDriver()

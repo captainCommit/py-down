@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import requests
+from utils import getChromeDriver
 import os
 import argparse
 from tqdm import tqdm
@@ -11,10 +12,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import StaleElementReferenceException,InvalidArgumentException
 
-def init(p):
+def init():
     caps = DesiredCapabilities().CHROME
     caps["pageLoadStrategy"] = "eager"  #  interactive
-    driver = webdriver.Chrome(executable_path=p,desired_capabilities=caps)
+    driver = webdriver.Chrome(executable_path="./chromedriver",desired_capabilities=caps)
     driver.minimize_window()
     return driver
 
@@ -41,10 +42,12 @@ def selectExtension(link,ext):
 
 def download(dir,url,ext):
     fileName = url.split('/')[-1].split('?')[0]
+    if not fileName.startsWith("xvideos"):
+        return
     if os.path.exists(dir):
         pass
     else:
-        print('x')
+        print('folder does not exist.... creating folder')
         os.mkdir(dir)
     dPath = os.path.join(dir,fileName)
     r = requests.get(url,stream=True)
@@ -55,7 +58,7 @@ def download(dir,url,ext):
         for chunk in tqdm(r.iter_content(chunk_size=chunkSize),total=bars, unit='KB', desc=fileName, leave=True, file=sys.stdout):
             if chunk: 
                     f.write(chunk)
-    print("Done downloading : {f}".format(f=fileName))
+    print("{f} : download completed".format(f=fileName))
 
 
 '''
@@ -69,38 +72,46 @@ parser.add_argument('--l',type=str,help="destination directory for storing downl
 args = parser.parse_args()
 '''
 try:
+    getChromeDriver()
     os.system('clear')
     print("################### Downloader v1.0 ###################")
-    d = None
     p= None
     l = None
     if os.path.exists('config.env'):
-        f = load_dotenv('config.env')
-        d = os.getenv("d")
-        p = os.getenv("p")
-        l = os.getenv("l")
+        ch = input("Do you want to change existing config files (Y/n): ")
+        if ch.lower() == 'y':
+            p = input("Link Repository : ")
+            l = input("Destination Folder : ")
+            t = input('Container Tag : ')
+            a = input('Attribute : ')
+            e = input("Extension : ")
+            f = open('config.env','w+')
+            f.write("links={p}\ndest={l}\ntag={t}\nattr={a}\next={e}".format(p=p,l=l,t=t,a=a,e=e))
+            f.close() 
+        else:
+            f = load_dotenv('config.env')
+            p = os.getenv("links")
+            l = os.getenv("dest")
+            t = os.getenv('tag')
+            a = os.getenv('attr')
+            e = os.getenv('ext')
     else:
-        print("This data is only needed for the first run for configuration.\n")
-        d = input("location of the chromedriver file : ")
-        p = input("location of the text file containing list of urls : ")
-        l = input("destination of downloaded files : ")
+        print("This data is compulsory in the first run to create a config file.\n")
+        p = input("Link Repository : ")
+        l = input("Destination Folder : ")
+        t = input('Container Tag : ')
+        a = input('Attribute : ')
+        e = input("Extension : ")
         f = open('config.env','w+')
-        f.write("d={d}\np={p}\nl={l}".format(d=d,p=p,l=l))
-        f.close()
+        f.write("links={p}\ndest={l}\ntag={t}\nattr={a}\next={e}".format(p=p,l=l,t=t,a=a,e=e))
+        f.close() 
 
-    #print("Enter download data")
-    #print("-------------------------")
-    t = "video"#input('tag containing the url : ')
-    a = "src"#input('the attribute that holds the url to the file : ')
-    e = "mp4"#input("extension of the file being downloaded : ")
-
-    driver = init(str(d))
+    driver = init()
     urls = getlinks(p)
     for url in urls:
         links = getUrls(driver,urls,t,a)
         for x in links:
             download(l,x,e)
-        print("Done")
 except Exception as qw:
     driver.close()
     print(qw)
