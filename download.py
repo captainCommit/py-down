@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 import os
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import StaleElementReferenceException,InvalidArgumentException
 
@@ -20,13 +24,25 @@ def init():
     return driver
 
 
-def getlinks(path):
-    f = open(path).readlines()
-    links = [x.replace('\n','') for x in f]
-    if len(links) == 0:
-        print("No Link Provided in links in text file\nExiting....")
-        raise Exception;
-    return links
+def getlinks():
+    caps = DesiredCapabilities().CHROME
+    caps["pageLoadStrategy"] = "eager"  #  interactive
+    driver = webdriver.Chrome(executable_path="./chromedriver",desired_capabilities=caps)
+    driver.minimize_window()
+    driver.get('https://uploader-x.web.app/')
+    timeout = 5
+    try:
+        element_present = EC.presence_of_element_located((By.TAG_NAME, 'br'))
+        WebDriverWait(driver, timeout).until(element_present)
+    except:
+        print("Timed out waiting for page to load")
+    finally:
+        data = driver.find_element_by_tag_name('p').text
+        lnk = data.split("\n")
+        final_data = []
+        for x in lnk:
+            final_data.append(x.split("  ")[0])
+        return final_data
 
 def getUrls(driver,urls,tag,attr):
     driver.get(url)
@@ -42,7 +58,7 @@ def selectExtension(link,ext):
 
 def download(dir,url,ext):
     fileName = url.split('/')[-1].split('?')[0]
-    if not fileName.startsWith("xvideos"):
+    if not "xvideos" in fileName:
         return
     if os.path.exists(dir):
         pass
@@ -61,7 +77,6 @@ def download(dir,url,ext):
     print("{f} : download completed".format(f=fileName))
 
 
-'''
 parser = argparse.ArgumentParser(description="Download mutiple files from internet at once")
 parser.add_argument('--d',type=str,help='location of the chromedriver file')
 parser.add_argument('--p', type=str,help='location of the text file containing list of urls')
@@ -70,7 +85,7 @@ parser.add_argument('--a',type=str,help='the attribute that holds the url to the
 parser.add_argument('--e',type=str,help="extension of the file being downloaded")
 parser.add_argument('--l',type=str,help="destination directory for storing downloaded files")
 args = parser.parse_args()
-'''
+
 try:
     getChromeDriver()
     os.system('clear')
@@ -80,7 +95,6 @@ try:
     if os.path.exists('config.env'):
         ch = input("Do you want to change existing config files (Y/n): ")
         if ch.lower() == 'y':
-            p = input("Link Repository : ")
             l = input("Destination Folder : ")
             t = input('Container Tag : ')
             a = input('Attribute : ')
@@ -90,14 +104,12 @@ try:
             f.close() 
         else:
             f = load_dotenv('config.env')
-            p = os.getenv("links")
             l = os.getenv("dest")
             t = os.getenv('tag')
             a = os.getenv('attr')
             e = os.getenv('ext')
     else:
         print("This data is compulsory in the first run to create a config file.\n")
-        p = input("Link Repository : ")
         l = input("Destination Folder : ")
         t = input('Container Tag : ')
         a = input('Attribute : ')
@@ -107,7 +119,7 @@ try:
         f.close() 
 
     driver = init()
-    urls = getlinks(p)
+    urls = getlinks()
     for url in urls:
         links = getUrls(driver,urls,t,a)
         for x in links:
